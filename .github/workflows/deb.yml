@@ -55,7 +55,7 @@ jobs:
         if: env.HEAD_TAG != ''
 
       - name: Install packagecloud cli
-        run: ruby.gem install package_cloud
+        run: ruby.gem install --no-document package_cloud
         if: env.HEAD_TAG != ''
 
       - name: Upload to packagecloud
