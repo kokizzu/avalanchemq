@@ -64,7 +64,7 @@ module AvalancheMQ
 
       @ack.delete
       @ack.close
-      @ack = MFile.new(File.join(@index_dir, "ack"), ack_max_file_size)
+      @ack = MFile.new(File.join(@index_dir, "ack"), @enq.size // 2)
       SchemaVersion.prefix(@ack, :index)
       @ack.advise(MFile::Advice::DontNeed)
     ensure
