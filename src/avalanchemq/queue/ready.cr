@@ -197,6 +197,21 @@ module AvalancheMQ
         @ready.sum(0_u64, &blk)
       end
 
+      def max(&blk : SegmentPosition -> _) : UInt32
+        return 0_u32 if sum(&blk) == 0
+        @ready.max_of(&blk)
+      end
+
+      def min(&blk : SegmentPosition -> _) : UInt32
+        return 0_u32 if sum(&blk) == 0
+        @ready.min_of(&blk)
+      end
+
+      def avg(&blk : SegmentPosition -> _) : UInt64
+        return 0_u64 if sum(&blk) == 0
+        (sum(&blk) // @ready.size)
+      end
+
       def compact
         @lock.synchronize do
           @ready = Deque(SegmentPosition).new(@ready.size) { |i| @ready[i] }

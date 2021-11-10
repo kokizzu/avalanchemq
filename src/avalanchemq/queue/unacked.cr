@@ -66,6 +66,21 @@ module AvalancheMQ
         @unacked.sum(0_u64, &blk)
       end
 
+      def max(&blk : Unack -> _) : UInt32
+        return 0_u32 if sum(&blk) == 0
+        @unacked.max_of(&blk)
+      end
+
+      def min(&blk : Unack -> _) : UInt32
+        return 0_u32 if sum(&blk) == 0
+        @unacked.min_of(&blk)
+      end
+
+      def avg(&blk : Unack -> _) : UInt64
+        return 0_u64 if sum(&blk) == 0
+        (sum(&blk) // @ready.size)
+      end
+
       def capacity
         @unacked.capacity
       end
