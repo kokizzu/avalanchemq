@@ -78,7 +78,7 @@ module AvalancheMQ
 
       def avg(&blk : Unack -> _) : UInt64
         return 0_u64 if sum(&blk) == 0
-        (sum(&blk) // @ready.size)
+        (sum(&blk) // @unacked.size)
       end
 
       def capacity
