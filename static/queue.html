@@ -51,23 +51,40 @@
         <table class="details-table">
           <tr>
             <th></th>
+            <th></th>
+            <th style="text-align:center">Bytesize</th>
+          </tr>
+          <tr>
+            <th></th>
             <th>Count</th>
-            <th>Bytesize</th>
+            <th>Sum</th>
+            <th>Max</th>
+            <th>Min</th>
+            <th>Avg</th>
           </tr>
           <tr>
             <th>Total</th>
             <td id="q-total"></td>
             <td id="q-total-bytes"></td>
+            <td id="q-total-max-bytes"></td>
+            <td id="q-total-min-bytes"></td>
+            <td id="q-total-avg-bytes"></td>
           </tr>
           <tr>
             <th>Ready</th>
             <td id="q-ready"></td>
             <td id="q-ready-bytes"></td>
+            <td id="q-ready-max-bytes"></td>
+            <td id="q-ready-min-bytes"></td>
+            <td id="q-ready-avg-bytes"></td>
           </tr>
           <tr>
             <th>Unacked</th>
             <td id="q-unacked"></td>
             <td id="q-unacked-bytes"></td>
+            <td id="q-unacked-max-bytes"></td>
+            <td id="q-unacked-min-bytes"></td>
+            <td id="q-unacked-avg-bytes"></td>
           </tr>
         </table>
       </section>
@@ -340,10 +357,19 @@
           handleQueueState(item.state)
           document.getElementById('q-unacked').textContent = item.unacked
           document.getElementById('q-unacked-bytes').textContent = avalanchemq.helpers.nFormatter(item.unacked_bytes) + 'B'
+          document.getElementById('q-unacked-max-bytes').textContent = avalanchemq.helpers.nFormatter(item.unacked_max_bytes) + 'B'
+          document.getElementById('q-unacked-min-bytes').textContent = avalanchemq.helpers.nFormatter(item.unacked_min_bytes) + 'B'
+          document.getElementById('q-unacked-avg-bytes').textContent = avalanchemq.helpers.nFormatter(item.unacked_avg_bytes) + 'B'
           document.getElementById('q-total').textContent = avalanchemq.helpers.formatNumber(item.messages)
           document.getElementById('q-total-bytes').textContent = avalanchemq.helpers.nFormatter(item.unacked_bytes + item.ready_bytes) + 'B'
+          document.getElementById('q-total-max-bytes').textContent = avalanchemq.helpers.nFormatter(item.unacked_max_bytes + item.ready_max_bytes) + 'B'
+          document.getElementById('q-total-min-bytes').textContent = avalanchemq.helpers.nFormatter(item.unacked_min_bytes + item.ready_min_bytes) + 'B'
+          document.getElementById('q-total-avg-bytes').textContent = avalanchemq.helpers.nFormatter(item.unacked_avg_bytes + item.ready_avg_bytes) + 'B'
           document.getElementById('q-ready').textContent = avalanchemq.helpers.formatNumber(item.ready)
           document.getElementById('q-ready-bytes').textContent = avalanchemq.helpers.nFormatter(item.ready_bytes) + 'B'
+          document.getElementById('q-ready-max-bytes').textContent = avalanchemq.helpers.nFormatter(item.ready_max_bytes) + 'B'
+          document.getElementById('q-ready-min-bytes').textContent = avalanchemq.helpers.nFormatter(item.ready_min_bytes) + 'B'
+          document.getElementById('q-ready-avg-bytes').textContent = avalanchemq.helpers.nFormatter(item.ready_avg_bytes) + 'B'
           document.getElementById('q-consumers').textContent = avalanchemq.helpers.formatNumber(item.consumers)
           consumersTable.updateTable(item.consumer_details)
           if (all) {
