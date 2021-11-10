@@ -135,10 +135,8 @@ module AvalancheMQ
       sp = write_to_disk(msg, ex.persistent?)
       flush = properties.delivery_mode == 2_u8
       ok = 0
-      seg_refs = @segment_references
       found_queues.each do |q|
         if q.publish(sp, flush)
-          seg_refs.inc(sp.segment)
           ex.publish_out_count += 1
           if confirm && q.is_a?(DurableQueue) && flush
             @queues_to_fsync_lock.synchronize do

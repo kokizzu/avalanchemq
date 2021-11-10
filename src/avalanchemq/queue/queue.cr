@@ -459,6 +459,7 @@ module AvalancheMQ
       elsif sp.expiration_ts > 0
         refresh_ttl_timeout
       end
+      @vhost.increase_segment_references(sp.segment)
       # @log.debug { "Enqueued successfully #{sp} ready=#{@ready.size} unacked=#{unacked_count} consumers=#{@consumers.size}" }
       true
     rescue Channel::ClosedError
