@@ -26,12 +26,13 @@ module AvalancheMQ
         end
       end
 
-      def delete(sp : SegmentPosition)
+      def delete(sp : SegmentPosition) : Nil
         @lock.synchronize do
           unacked = @unacked
           if idx = unacked.bsearch_index { |u| u.sp >= sp }
             if unacked[idx].sp == sp
               unacked.delete_at(idx)
+              compact
             end
           end
         end
@@ -46,24 +47,17 @@ module AvalancheMQ
               true
             end
           end
+          compact
         end
         consumer_unacked
       end
 
-      def size
-        @unacked.size
-      end
-
-      def [](index) : Unack
-        @unacked[index]
-      end
-
-      def []?(index) : Unack?
-        @unacked[index]?
-      end
-
       def sum(&blk : Unack -> _) : UInt64
         @unacked.sum(0_u64, &blk)
+      end
+
+      def size
+        @unacked.size
       end
 
       def capacity
@@ -82,18 +76,10 @@ module AvalancheMQ
         end
       end
 
-      def compact
-        @lock.synchronize do
-          @unacked = Deque(Unack).new(@unacked.size) { |i| @unacked[i] }
-        end
-      end
-
-      def lock
-        @lock.lock
-      end
-
-      def unlock
-        @lock.unlock
+      private def compact : Nil
+        unacked = @unacked
+        return unless unacked.capacity > unacked.size * 2
+        @unacked = Deque(Unack).new(unacked.size) { |i| unacked[i] }
       end
 
       def purge

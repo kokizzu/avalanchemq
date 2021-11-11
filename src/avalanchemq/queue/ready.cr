@@ -13,14 +13,11 @@ module AvalancheMQ
         @ready = Deque(SegmentPosition).new(@initial_capacity)
       end
 
-      def includes?(sp)
-        @ready.includes?(sp)
-      end
-
       def shift
         @lock.synchronize do
           sp = @ready.shift
           @bytesize -= sp.bytesize
+          compact
           sp
         end
       end
@@ -29,6 +26,7 @@ module AvalancheMQ
         @lock.synchronize do
           if sp = @ready.shift?
             @bytesize -= sp.bytesize
+            compact
             sp
           end
         end
@@ -36,24 +34,19 @@ module AvalancheMQ
 
       # Shift until block breaks or it returns false
       # If broken with false yield, return the message to the queue
-      def shift(&blk : SegmentPosition -> Bool)
+      def shift(&blk : SegmentPosition -> Bool) : Nil
         @lock.synchronize do
+          bytesize = 0u64
           while sp = @ready.shift?
             ok = yield sp
             unless ok
               @ready.unshift sp
               break
             end
-            @bytesize -= sp.bytesize
+            bytesize += sp.bytesize
           end
-        end
-      end
-
-      # Yields an iterator over all SPs, the deque is locked
-      # while it's being read from
-      def with_all(&blk : Iterator(SegmentPosition) -> Nil)
-        @lock.synchronize do
-          yield @ready.each
+          @bytesize -= bytesize
+          compact
         end
       end
 
@@ -119,12 +112,14 @@ module AvalancheMQ
           if @ready.first == sp
             @ready.shift
             @bytesize -= sp.bytesize
+            compact
             return true
           else
             if idx = @ready.bsearch_index { |rsp| rsp >= sp }
               if @ready[idx] == sp
                 @ready.delete_at(idx)
                 @bytesize -= sp.bytesize
+                compact
                 return true
               end
             end
@@ -140,6 +135,7 @@ module AvalancheMQ
             @bytesize -= sp.bytesize
             yield sp
           end
+          compact
         end
       end
 
@@ -150,6 +146,7 @@ module AvalancheMQ
             @bytesize -= sp.bytesize
             yield sp
           end
+          compact
         end
       end
 
@@ -211,22 +208,10 @@ module AvalancheMQ
         @ready.capacity
       end
 
-      def compact
-        @lock.synchronize do
-          @ready = Deque(SegmentPosition).new(@ready.size) { |i| @ready[i] }
-        end
-      end
-
-      def lock
-        @lock.lock
-      end
-
-      def unlock
-        @lock.unlock
-      end
-
-      def to_a
-        @ready.to_a
+      private def compact : Nil
+        ready = @ready
+        return unless ready.capacity > ready.size * 2
+        @ready = Deque(SegmentPosition).new(ready.size) { |i| ready[i] }
       end
     end
 
