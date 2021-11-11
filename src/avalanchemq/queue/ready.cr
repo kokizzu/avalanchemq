@@ -212,6 +212,7 @@ module AvalancheMQ
         ready = @ready
         return unless ready.capacity > ready.size * 2
         @ready = Deque(SegmentPosition).new(ready.size) { |i| ready[i] }
+        GC.collect
       end
     end
 

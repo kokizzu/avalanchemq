@@ -80,6 +80,7 @@ module AvalancheMQ
         unacked = @unacked
         return unless unacked.capacity > unacked.size * 2
         @unacked = Deque(Unack).new(unacked.size) { |i| unacked[i] }
+        GC.collect
       end
 
       def purge
