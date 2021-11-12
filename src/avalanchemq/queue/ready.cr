@@ -8,7 +8,7 @@ module AvalancheMQ
       @initial_capacity : Int32
       getter bytesize = 0u64
 
-      def initialize(initial_capacity = 1024)
+      def initialize(initial_capacity = 4096)
         @initial_capacity = initial_capacity.to_i32
         @ready = Deque(SegmentPosition).new(@initial_capacity)
       end
@@ -17,7 +17,6 @@ module AvalancheMQ
         @lock.synchronize do
           sp = @ready.shift
           @bytesize -= sp.bytesize
-          compact
           sp
         end
       end
@@ -26,7 +25,6 @@ module AvalancheMQ
         @lock.synchronize do
           if sp = @ready.shift?
             @bytesize -= sp.bytesize
-            compact
             sp
           end
         end
@@ -46,7 +44,6 @@ module AvalancheMQ
             bytesize += sp.bytesize
           end
           @bytesize -= bytesize
-          compact
         end
       end
 
@@ -112,14 +109,12 @@ module AvalancheMQ
           if @ready.first == sp
             @ready.shift
             @bytesize -= sp.bytesize
-            compact
             return true
           else
             if idx = @ready.bsearch_index { |rsp| rsp >= sp }
               if @ready[idx] == sp
                 @ready.delete_at(idx)
                 @bytesize -= sp.bytesize
-                compact
                 return true
               end
             end
@@ -208,13 +203,16 @@ module AvalancheMQ
         @ready.capacity
       end
 
-      private def compact : Nil
+      def compact : Nil
         ready = @ready
-        return unless ready.capacity > ready.size + 2**17 # when there's 3MB free in the deque
-        {% unless flag?(:release) %}
-          puts "compacting internal ready queue capacity=#{ready.capacity} size=#{ready.size}"
-        {% end %}
-        @ready = ready.dup
+        if (ready.empty? && ready.capacity > @initial_capacity) || ready.capacity > ready.size + 2**17 # when there's 3MB free in the deque
+          {% unless flag?(:release) %}
+            puts "compacting internal ready queue capacity=#{ready.capacity} size=#{ready.size}"
+          {% end %}
+          capacity = Math.max(ready.size, @initial_capacity)
+          @ready = Deque(SegmentPosition).new(capacity)
+          ready.each { |u| @ready << u }
+        end
       end
     end
 

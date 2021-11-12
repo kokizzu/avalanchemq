@@ -276,6 +276,8 @@ module AvalancheMQ
         break if @state.closed?
         if @ready.empty?
           i = 0
+          @ready.compact
+          @unacked.compact
           receive_or_expire || break
         end
         if @state.running? && (c = @consumers.next_consumer(i))
@@ -288,6 +290,8 @@ module AvalancheMQ
         else
           break if @state.closed?
           i = 0
+          @ready.compact
+          @unacked.compact
           consumer_or_expire || break
         end
       rescue Channel::ClosedError
