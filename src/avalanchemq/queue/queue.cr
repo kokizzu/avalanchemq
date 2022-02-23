@@ -47,7 +47,6 @@ module AvalancheMQ
     @deliveries = Hash(SegmentPosition, Int32).new
     @consumers = ConsumerStore.new
     @message_available = Channel(Nil).new(1)
-    @consumer_available = Channel(Nil).new(1)
     @refresh_ttl_timeout = Channel(Nil).new(1)
     @ready = ReadyQueue.new
     @unacked = UnackQueue.new
@@ -141,7 +140,6 @@ module AvalancheMQ
     # force trigger a loop in delivery_loop
     private def step_loop
       message_available
-      consumer_available
     end
 
     def clear_policy
@@ -158,13 +156,6 @@ module AvalancheMQ
     def message_available
       select
       when @message_available.send nil
-      else
-      end
-    end
-
-    def consumer_available
-      select
-      when @consumer_available.send nil
       else
       end
     end
@@ -329,7 +320,7 @@ module AvalancheMQ
         select
         when @paused.receive
           @log.debug { "Queue unpaused" }
-        when @consumer_available.receive
+        when @has_message.send(true)
           @log.debug "Queue#consumer_or_expire Consumer available"
         when @refresh_ttl_timeout.receive
           @log.debug "Queue#consumer_or_expire Refresh TTL timeout"
@@ -346,7 +337,7 @@ module AvalancheMQ
       elsif @state.flow? || @state.paused?
         @paused.receive
       else
-        @consumer_available.receive
+        @has_message.send(true)
       end
       true
     end
@@ -382,7 +373,6 @@ module AvalancheMQ
       @closed = true
       @state = QueueState::Closed
       @message_available.close
-      @consumer_available.close
       @consumers.cancel_consumers
       @consumers.clear
       # TODO: When closing due to ReadError, queue is deleted if exclusive
@@ -788,7 +778,6 @@ module AvalancheMQ
       @ack_count += 1
       @unacked.delete(sp)
       delete_message(sp)
-      consumer_available
     end
 
     protected def delete_message(sp : SegmentPosition) : Nil
@@ -825,7 +814,6 @@ module AvalancheMQ
       else
         expire_msg(sp, :rejected)
       end
-      consumer_available
       @reject_count += 1
     end
 
@@ -845,7 +833,6 @@ module AvalancheMQ
       @consumers.add_consumer(consumer)
       @exclusive_consumer = true if consumer.exclusive
       @log.debug { "Adding consumer (now #{@consumers.size})" }
-      consumer_available
       spawn(name: "Notify observer vhost=#{@vhost.name} queue=#{@name}") do
         notify_observers(:add_consumer, consumer)
       end

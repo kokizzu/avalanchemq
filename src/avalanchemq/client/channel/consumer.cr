@@ -12,6 +12,7 @@ module AvalancheMQ
         @log : Logger
         @unacked = 0_u32
         @accepts = ::Channel(Bool).new
+        getter accepts
 
         def initialize(@channel : Client::Channel, @tag : String,
                        @queue : Queue, @no_ack : Bool, @exclusive : Bool, @priority : Int32)
