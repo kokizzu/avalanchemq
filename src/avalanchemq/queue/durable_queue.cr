@@ -234,11 +234,15 @@ module AvalancheMQ
       File.open(path, "W") do |f|
         f.buffer_size = Config.instance.file_buffer_size
         f.advise(File::Advice::Sequential)
-        sp = SegmentPosition.from_io file
-        if sp.zero?
-          size = file.pos - SegmentPosition::BYTESIZE
-          @log.info { "Truncating #{path} to #{size}" }
-          f.truncate size
+        loop do
+          sp = SegmentPosition.from_io f
+          if sp.zero?
+            size = f.pos - SegmentPosition::BYTESIZE
+            @log.info { "Truncating #{path} to #{size}" }
+            f.truncate size
+            break
+          end
+        rescue IO::EOFError
           break
         end
       end
