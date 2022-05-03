@@ -163,10 +163,14 @@ module AvalancheMQ
 
     private def restore_index : Nil
       @log.info { "Restoring index" }
-      SchemaVersion.migrate(File.join(@index_dir, "enq"), :index)
-      SchemaVersion.migrate(File.join(@index_dir, "ack"), :index)
-      File.open(File.join(@index_dir, "enq")) do |enq|
-        File.open(File.join(@index_dir, "ack")) do |ack|
+      enq_path = File.join(@index_dir, "enq")
+      ack_path = File.join(@index_dir, "ack")
+      SchemaVersion.migrate(enq_path, :index)
+      SchemaVersion.migrate(ack_path, :index)
+      truncate_sparse_file(enq_path)
+      truncate_sparse_file(ack_path)
+      File.open(enq_path) do |enq|
+        File.open(ack_path) do |ack|
           enq.buffer_size = Config.instance.file_buffer_size
           ack.buffer_size = Config.instance.file_buffer_size
           enq.advise(File::Advice::Sequential)
@@ -179,13 +183,7 @@ module AvalancheMQ
 
           loop do
             sp = SegmentPosition.from_io ack
-            if sp.zero?
-              @log.info { "Truncating ack index" }
-              File.open(ack.path, "W") do |f|
-                f.truncate(ack.pos - SegmentPosition::BYTESIZE)
-              end
-              break
-            end
+            break if sp.zero?
             unless acked
               ack_count = ((ack.size - sizeof(Int32)) // SP_SIZE).to_u32
               acked = Array(SegmentPosition).new(ack_count)
@@ -201,13 +199,7 @@ module AvalancheMQ
 
           loop do
             sp = SegmentPosition.from_io enq
-            if sp.zero?
-              @log.info { "Truncating queue index" }
-              File.open(enq.path, "W") do |f|
-                f.truncate(enq.pos - SegmentPosition::BYTESIZE)
-              end
-              break
-            end
+            break if sp.zero?
             unless ready
               # To avoid repetetive allocations in Dequeue#increase_capacity
               # we redeclare the ready queue with a larger initial capacity
@@ -226,6 +218,24 @@ module AvalancheMQ
       end
     rescue ex : IO::Error
       @log.error { "Could not restore index: #{ex.inspect}" }
+    end
+
+    # Reads all SPs in the index, truncate if there's only 0's left
+    # As we preallocate files, they are not truncated on ungraceful shutdown
+    # and thus we allocate too large memory structures in restore_index.
+    # TODO: optimize using SEEK_HOLE or compare allocated blocks * block size vs file size
+    private def truncate_sparse_file(path)
+      File.open(path, "W") do |f|
+        f.buffer_size = Config.instance.file_buffer_size
+        f.advise(File::Advice::Sequential)
+        sp = SegmentPosition.from_io file
+        if sp.zero?
+          size = file.pos - SegmentPosition::BYTESIZE
+          @log.info { "Truncating #{path} to #{size}" }
+          f.truncate size
+          break
+        end
+      end
     end
 
     def enq_file_size
