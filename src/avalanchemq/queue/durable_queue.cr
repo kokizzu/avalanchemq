@@ -229,7 +229,7 @@ module AvalancheMQ
         # if number of allocated blocks (times block size) is smaller than
         # the file size then the file must be sparse
         stats = File.info(path).@stat
-        return if (stats.st_blocks - 1) * stats.st_blksize >= stats.st_size
+        return if stats.st_blocks * stats.st_blksize >= stats.st_size
       {% end %}
       File.open(path, "W") do |f|
         f.buffer_size = Config.instance.file_buffer_size
