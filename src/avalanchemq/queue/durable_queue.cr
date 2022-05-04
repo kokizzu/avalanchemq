@@ -231,7 +231,7 @@ module AvalancheMQ
         stats = File.info(path).@stat
         return if stats.st_blocks * stats.st_blksize >= stats.st_size
       {% end %}
-      File.open(path, "W") do |f|
+      File.open(path, "r+") do |f|
         f.buffer_size = Config.instance.file_buffer_size
         f.advise(File::Advice::Sequential)
         loop do
