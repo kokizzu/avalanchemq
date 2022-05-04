@@ -85,6 +85,23 @@ describe AvalancheMQ::DurableQueue do
       end
     end
   end
+
+  it "it truncates preallocated index files on boot" do
+    enq_path = ""
+    with_channel do |ch|
+      q = ch.queue("pre", durable: true)
+      2000.times { q.publish "" }
+      queue = s.vhosts["/"].queues["pre"].as(AvalancheMQ::DurableQueue)
+      enq_path = queue.@enq.path
+    end
+    close_servers
+    # emulate the file was preallocated after server crash
+    File.open(enq_path, "r+") { |f| f.truncate(f.size + 1024**2) }
+    TestHelpers.setup
+    queue = s.vhosts["/"].queues["pre"].as(AvalancheMQ::DurableQueue)
+    # make sure that the @ready capacity doesn't take into account the preallocated size
+    queue.@ready.capacity.should eq Math.pw2ceil(2000)
+  end
 end
 
 describe AvalancheMQ::VHost do
